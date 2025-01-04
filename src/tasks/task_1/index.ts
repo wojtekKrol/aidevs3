@@ -1,5 +1,4 @@
 import { chromium } from 'playwright';
-import { robotAuth } from './robot_auth';
 import { SYSTEM_PROMPT, createUserPrompt } from './prompts';
 import type OpenAI from 'openai';
 import { OpenAIService } from '../../services/OpenAIService';
@@ -23,17 +22,6 @@ async function solveCaptcha(question: string) {
 }
 
 async function main() {
-  // Try robot authentication first if SOLVE_AS_ROBOT is true
-  if (process.env.SOLVE_AS_ROBOT === 'true') {
-    console.log('Attempting robot authentication...');
-    const result = await robotAuth('https://xyz.ag3nts.org/api/auth');
-    
-    if (result === 'OK') {
-      console.log('Robot authentication successful!');
-    }
-  }
-      
-
   const browser = await chromium.launch({ headless: false });
   const context = await browser.newContext();
   const page = await context.newPage();
