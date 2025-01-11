@@ -5,7 +5,14 @@ export class OpenAIService {
   private openai: OpenAI;
 
   constructor() {
-    this.openai = new OpenAI();
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OPENAI_API_KEY environment variable is missing');
+    }
+    
+    this.openai = new OpenAI({
+      apiKey: apiKey
+    });
   }
 
   async completion(
