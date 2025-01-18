@@ -18,7 +18,7 @@ async function sendResult(answer: string, apiKey: string): Promise<any> {
     const response = await axios.post('https://centrala.ag3nts.org/report', {
       answer,
       apikey: apiKey,
-      task: "mp3"
+      task: "kategorie"
     });
 
     if (response.status !== 200) {

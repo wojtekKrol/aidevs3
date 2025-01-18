@@ -34,7 +34,7 @@ const task8 = async () => {
       task: "robotid"
     });
 
-    return result
+    return result.data;
   } catch (error) {
     console.error('Error in task 8:', error);
     throw error;
