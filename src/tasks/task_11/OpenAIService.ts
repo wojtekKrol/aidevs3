@@ -1,37 +1,32 @@
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import type { ChatCompletionCreateParams } from "openai/resources/chat/completions";
 import { TaskError } from "../../errors";
 
+type ResponseFormat = ChatCompletionCreateParams['response_format'];
+
+interface CompletionOptions {
+  response_format?: ResponseFormat;
+  model?: string;
+}
+
 export class OpenAIService {
-  private openai: OpenAI;
+  private client: OpenAI;
 
   constructor() {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new TaskError("OPENAI_API_KEY is not set in environment variables");
-    }
-    this.openai = new OpenAI({
-      apiKey: apiKey
-    });
+    this.client = new OpenAI();
   }
 
   async completion(
     messages: ChatCompletionMessageParam[],
-    model: string = "gpt-4",
-    jsonMode: boolean = false,
-    maxTokens: number = 1024
+    options: CompletionOptions = {}
   ): Promise<string> {
-    try {
-      const chatCompletion = await this.openai.chat.completions.create({
-        messages,
-        model,
-        max_tokens: maxTokens,
-        response_format: jsonMode ? { type: "json_object" } : { type: "text" }
-      });
-      
-      return chatCompletion.choices[0].message.content || '';
-    } catch (error) {
-      throw new TaskError(`OpenAI completion error: ${error}`);
-    }
+    const response = await this.client.chat.completions.create({
+      model: options.model || 'gpt-4o',
+      messages,
+      response_format: options.response_format
+    });
+
+    return response.choices[0].message.content || '';
   }
 }
