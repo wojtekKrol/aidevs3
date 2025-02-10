@@ -7,8 +7,7 @@ export class TaskAPIService {
 
   async sendAnswer<Input,Output>(answer: Input, task: string): Promise<Output> {
     try {
-      console.log(chalk.blue('📤 Sending answer to API...'), chalk.yellow(JSON.stringify(answer)));
-      const response = await axios.post(this.baseUrl, {
+      const response = await axios.post<Output>(this.baseUrl, {
         answer,
         apikey: process.env.PERSONAL_API_KEY,
         task
@@ -21,7 +20,7 @@ export class TaskAPIService {
       if (!response.data) {
         throw new TaskError('No data received from server', response.data);
       }
-
+      
       return response.data;
     } catch (error) {
       if (axios.isAxiosError(error)) {

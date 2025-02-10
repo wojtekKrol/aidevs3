@@ -240,4 +240,27 @@ export class OpenAIService {
       throw new TaskError('Unknown error occurred while creating description');
     }
   }
+
+  async completion(messages: any[]): Promise<string> {
+    try {
+      const response = await this.client.chat.completions.create({
+        model: 'gpt-4o',
+        messages,
+        temperature: 0.7,
+        max_tokens: 150
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('No content in response');
+      }
+
+      return content;
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new TaskError(`OpenAI API Error: ${error.message}`);
+      }
+      throw new TaskError('Unknown error occurred during completion');
+    }
+  }
 }
