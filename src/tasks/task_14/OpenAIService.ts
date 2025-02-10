@@ -1,37 +1,72 @@
-import OpenAI from 'openai';
-import { ChatCompletionMessageParam } from 'openai/resources';
-import { TaskError } from '../../errors';
+import OpenAI from "openai";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
+import { createByModelName } from '@microsoft/tiktokenizer';
 
 export class OpenAIService {
-  private client: OpenAI;
+  private openai: OpenAI;
+  private tokenizers: Map<string, Awaited<ReturnType<typeof createByModelName>>> = new Map();
+  private readonly IM_START = "<|im_start|>";
+  private readonly IM_END = "<|im_end|>";
+  private readonly IM_SEP = "<|im_sep|>";
 
   constructor() {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new TaskError('OPENAI_API_KEY environment variable is not set');
+    this.openai = new OpenAI();
+  }
+
+  private async getTokenizer(modelName: string) {
+    if (!this.tokenizers.has(modelName)) {
+      const specialTokens: ReadonlyMap<string, number> = new Map([
+        [this.IM_START, 100264],
+        [this.IM_END, 100265],
+        [this.IM_SEP, 100266],
+      ]);
+      const tokenizer = await createByModelName(modelName, specialTokens);
+      this.tokenizers.set(modelName, tokenizer);
     }
-    this.client = new OpenAI({ apiKey });
+    return this.tokenizers.get(modelName)!;
+  }
+
+  async countTokens(messages: ChatCompletionMessageParam[], model: string = 'gpt-4o'): Promise<number> {
+    const tokenizer = await this.getTokenizer(model);
+
+    let formattedContent = '';
+    messages.forEach((message) => {
+      formattedContent += `${this.IM_START}${message.role}${this.IM_SEP}${message.content || ''}${this.IM_END}`;
+    });
+    formattedContent += `${this.IM_START}assistant${this.IM_SEP}`;
+
+    const tokens = tokenizer.encode(formattedContent, [this.IM_START, this.IM_END, this.IM_SEP]);
+    return tokens.length;
   }
 
   async completion(
     messages: ChatCompletionMessageParam[],
-    options?: {
-      model?: string;
-      response_format?: { type: 'json_object' };
-      max_tokens?: number;
-    }
-  ): Promise<string> {
+    model: string = "gpt-4o",
+    stream: boolean = false,
+    jsonMode: boolean = false,
+    maxTokens: number = 4096
+  ): Promise<OpenAI.Chat.Completions.ChatCompletion | AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>> {
     try {
-      const response = await this.client.chat.completions.create({
-        model: options?.model || 'gpt-4',
+      const chatCompletion = await this.openai.chat.completions.create({
         messages,
-        response_format: options?.response_format,
-        max_tokens: options?.max_tokens,
+        model,
+        ...(model !== 'o1-mini' && model !== 'o1-preview' && {
+          stream,
+          max_tokens: maxTokens,
+          response_format: jsonMode ? { type: "json_object" } : { type: "text" }
+        })
       });
       
-      return response.choices[0].message.content || '';
+      if (stream) {
+        return chatCompletion as AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>;
+      } else {
+        return chatCompletion as OpenAI.Chat.Completions.ChatCompletion;
+      }
     } catch (error) {
-      throw new TaskError(`OpenAI API Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error("Error in OpenAI completion:", error);
+      throw error;
     }
   }
+
+
 }

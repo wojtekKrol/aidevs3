@@ -1,64 +1,34 @@
 import { TaskError } from '../errors';
+import axios from 'axios';
+import chalk from 'chalk';
 
 export class TaskAPIService {
-  private baseUrl = 'https://zadania.aidevs.pl';
-  private token: string | null = null;
+  private baseUrl = 'https://centrala.ag3nts.org/report';
 
-  async getToken(taskName: string): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/token/${taskName}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        apikey: process.env.PERSONAL_API_KEY
-      })
-    });
+  async sendAnswer<Input,Output>(answer: Input, task: string): Promise<Output> {
+    try {
+      console.log(chalk.blue('📤 Sending answer to API...'), chalk.yellow(JSON.stringify(answer)));
+      const response = await axios.post(this.baseUrl, {
+        answer,
+        apikey: process.env.PERSONAL_API_KEY,
+        task
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
 
-    const data = await response.json();
-    if (!data.token) {
-      throw new TaskError('Failed to get token', data);
+      if (!response.data) {
+        throw new TaskError('No data received from server', response.data);
+      }
+
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const message = error.response?.data?.message || error.message;
+        throw new TaskError(`Failed to send answer: ${message}`, error.response?.data);
+      }
+      throw error;
     }
-
-    this.token = data.token;
-    return data.token;
-  }
-
-  async getTask(): Promise<any> {
-    if (!this.token) {
-      throw new TaskError('No token available');
-    }
-
-    const response = await fetch(`${this.baseUrl}/task/${this.token}`);
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new TaskError('Failed to get task', data);
-    }
-
-    return data;
-  }
-
-  async sendAnswer(answer: any): Promise<any> {
-    if (!this.token) {
-      throw new TaskError('No token available');
-    }
-
-    const response = await fetch(`${this.baseUrl}/answer/${this.token}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        answer
-      })
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new TaskError('Failed to send answer', data);
-    }
-
-    return data;
   }
 } 
